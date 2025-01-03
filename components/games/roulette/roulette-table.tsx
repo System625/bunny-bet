@@ -61,7 +61,6 @@ export function RouletteTable({ selectedChip, disabled, onBetPlaced, currentBets
     const cellWidth = 60
     const cellHeight = 60
     const startX = 60  // Leave space for 0
-    const startY = 0
 
     const drawTable = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)

@@ -91,7 +91,7 @@ export function RouletteWheel({ spinning, number, onSpinComplete }: RouletteWhee
     }
 
     let wheelSpeed = spinning ? 0.2 : 0
-    let wheelDeceleration = 0.001
+    const wheelDeceleration = 0.001
     
     // Ball physics
     if (spinning && ballRef.current.speed === 0) {
