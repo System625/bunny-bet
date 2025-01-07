@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SYMBOLS, PAYLINES, type SlotState } from './types';
-import { generateServerSeed, generateSpinResult } from './provably-fair';
+import { generateServerSeed, generateSpinResult, generateClientSeed } from './provably-fair';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import confetti from 'canvas-confetti';
@@ -24,6 +24,12 @@ export function SlotsGame() {
   const [isAutoSpin, setIsAutoSpin] = useState(false);
   const [spinningSymbols, setSpinningSymbols] = useState(Array(9).fill(SYMBOLS[0]));
   const [autoSpinTimeout, setAutoSpinTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Initialize seeds
+  useEffect(() => {
+    setClientSeed(generateClientSeed());
+    setServerSeed(generateServerSeed());
+  }, []);
 
   // Cleanup auto-spin on unmount
   useEffect(() => {
