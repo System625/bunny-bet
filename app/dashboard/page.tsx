@@ -20,6 +20,16 @@ export default function DashboardPage() {
               Play European and American roulette with crypto
             </p>
           </Link>
+
+          <Link 
+            href="/games/slots" 
+            className="p-6 border-2 border-yellow-500 rounded-lg text-center md:text-left"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-yellow-500">Slots</h2>
+            <p className="text-yellow-500">
+              Spin to win with our provably fair slot machine
+            </p>
+          </Link>
           
           {/* Add more game cards here */}
         </div>
