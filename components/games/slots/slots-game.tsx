@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SYMBOLS, PAYLINES, type SlotState, type SlotResult } from './types';
-import { generateServerSeed, generateClientSeed, generateSpinResult } from './provably-fair';
+import { SYMBOLS, PAYLINES, type SlotState } from './types';
+import { generateServerSeed, generateSpinResult } from './provably-fair';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import confetti from 'canvas-confetti';
+import Image from 'next/image';
 
 export function SlotsGame() {
   const [mockBalance, setMockBalance] = useState(1000);
@@ -72,7 +73,7 @@ export function SlotsGame() {
       const animationEnd = Date.now() + duration;
       const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-      const interval: any = setInterval(function() {
+      const interval = setInterval(function() {
         const timeLeft = animationEnd - Date.now();
 
         if (timeLeft <= 0) {
@@ -93,7 +94,7 @@ export function SlotsGame() {
         origin: { y: 0.6 }
       });
     }
-  }, [state.betAmount]);
+  }, [state.betAmount, playSound]);
 
   const updateSpinningSymbols = useCallback(() => {
     setSpinningSymbols(prev => 
@@ -246,9 +247,11 @@ export function SlotsGame() {
                   }}
                   className="w-full h-full"
                 >
-                  <img
+                  <Image
                     src={symbol.image}
                     alt={symbol.name}
+                    width={100}
+                    height={100}
                     className="w-full h-full object-contain"
                   />
                 </motion.div>

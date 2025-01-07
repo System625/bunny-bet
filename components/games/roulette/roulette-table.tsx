@@ -175,7 +175,7 @@ export function RouletteTable({ selectedChip, disabled, onBetPlaced, currentBets
     }
 
     drawTable()
-  }, [])
+  }, [currentBets])
 
   return (
     <div className="w-full max-w-[800px] mx-auto">
