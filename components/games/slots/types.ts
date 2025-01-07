@@ -36,9 +36,7 @@ export const SYMBOLS: SlotSymbol[] = [
 ];
 
 export const PAYLINES: PayLine[] = [
-  { positions: [1, 1, 1], multiplier: 1 }, // Middle row
   { positions: [0, 0, 0], multiplier: 1 }, // Top row
+  { positions: [1, 1, 1], multiplier: 1 }, // Middle row
   { positions: [2, 2, 2], multiplier: 1 }, // Bottom row
-  { positions: [0, 1, 2], multiplier: 1.5 }, // Diagonal top-left to bottom-right
-  { positions: [2, 1, 0], multiplier: 1.5 }, // Diagonal bottom-left to top-right
 ]; 

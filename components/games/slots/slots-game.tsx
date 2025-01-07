@@ -152,14 +152,29 @@ export function SlotsGame() {
       // Calculate winning lines
       const winningLines = PAYLINES.filter((line, index) => {
         if (index >= state.selectedPayLines) return false;
-        const lineSymbols = line.positions.map((pos, col) => symbols[col * 3 + pos]);
-        return lineSymbols.every(symbol => symbol.id === lineSymbols[0].id);
+        // Only check first 3 paylines (horizontal rows)
+        if (index >= 3) return false;
+        
+        // Get symbols for this line
+        // Convert payline positions [col,row] to grid index [row * 3 + col]
+        const lineSymbols = line.positions.map((row, col) => {
+          const gridIndex = row * 3 + col;
+          return symbols[gridIndex];
+        });
+        
+        // Check if all symbols in the line match
+        const firstSymbol = lineSymbols[0];
+        return lineSymbols.every(symbol => symbol.id === firstSymbol.id);
       });
 
       // Calculate total win
       const totalWin = winningLines.reduce((sum, line) => {
-        const lineSymbols = line.positions.map((pos, col) => symbols[col * 3 + pos]);
-        return sum + (lineSymbols[0].value * line.multiplier * state.betAmount);
+        const lineSymbols = line.positions.map((row, col) => {
+          const gridIndex = row * 3 + col;
+          return symbols[gridIndex];
+        });
+        const symbolValue = lineSymbols[0].value;
+        return sum + (symbolValue * line.multiplier * state.betAmount);
       }, 0);
 
       // Add winnings to balance
@@ -171,7 +186,7 @@ export function SlotsGame() {
         isSpinning: false,
         lastResult: {
           symbols,
-          winningLines: winningLines.map((_, i) => i),
+          winningLines: winningLines.map(line => PAYLINES.indexOf(line)),
           totalWin,
           serverSeed,
           clientSeed,
@@ -226,44 +241,51 @@ export function SlotsGame() {
         {/* Slot Grid */}
         <div className="grid grid-cols-3 gap-2 mb-8 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 pointer-events-none" />
-          {(state.isSpinning ? spinningSymbols : (state.lastResult?.symbols || Array(9).fill(SYMBOLS[0]))).map((symbol, i) => (
-            <motion.div
-              key={i}
-              className={`aspect-square bg-black/30 rounded-lg p-2 flex items-center justify-center overflow-hidden
-                ${winningAnimation && state.lastResult?.winningLines.some(line => 
-                  PAYLINES[line].positions.some((pos, col) => col * 3 + pos === i)
-                ) ? 'ring-2 ring-yellow-500' : ''}`}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={state.isSpinning ? `spinning-${i}-${Date.now()}` : symbol.id}
-                  initial={{ y: -100, opacity: 0 }}
-                  animate={{ 
-                    y: 0, 
-                    opacity: 1,
-                    scale: winningAnimation && state.lastResult?.winningLines.some(line => 
-                      PAYLINES[line].positions.some((pos, col) => col * 3 + pos === i)
-                    ) ? [1, 1.1, 1] : 1
-                  }}
-                  exit={{ y: 100, opacity: 0 }}
-                  transition={{ 
-                    duration: state.isSpinning ? 0.2 : 0.5,
-                    delay: state.isSpinning ? 0 : i * 0.1,
-                    scale: { repeat: winningAnimation ? Infinity : 0, duration: 0.5 }
-                  }}
-                  className="w-full h-full"
-                >
-                  <Image
-                    src={symbol.image}
-                    alt={symbol.name}
-                    width={100}
-                    height={100}
-                    className="w-full h-full object-contain"
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </motion.div>
-          ))}
+          {(state.isSpinning ? spinningSymbols : (state.lastResult?.symbols || Array(9).fill(SYMBOLS[0]))).map((symbol, i) => {
+            // Convert grid index to [row,col] format
+            const row = Math.floor(i / 3);
+            const col = i % 3;
+            
+            return (
+              <motion.div
+                key={i}
+                className={`aspect-square bg-black/30 rounded-lg p-2 flex items-center justify-center overflow-hidden
+                  ${winningAnimation && state.lastResult?.winningLines.some(lineIndex => 
+                    // Only highlight if this position is part of a winning horizontal line
+                    lineIndex < 3 && PAYLINES[lineIndex].positions[col] === row
+                  ) ? 'ring-2 ring-yellow-500' : ''}`}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={state.isSpinning ? `spinning-${i}-${Date.now()}` : symbol.id}
+                    initial={{ y: -100, opacity: 0 }}
+                    animate={{ 
+                      y: 0, 
+                      opacity: 1,
+                      scale: winningAnimation && state.lastResult?.winningLines.some(line => 
+                        PAYLINES[line].positions.some((pos, col) => col * 3 + pos === i)
+                      ) ? [1, 1.1, 1] : 1
+                    }}
+                    exit={{ y: 100, opacity: 0 }}
+                    transition={{ 
+                      duration: state.isSpinning ? 0.2 : 0.5,
+                      delay: state.isSpinning ? 0 : i * 0.1,
+                      scale: { repeat: winningAnimation ? Infinity : 0, duration: 0.5 }
+                    }}
+                    className="w-full h-full"
+                  >
+                    <Image
+                      src={symbol.image}
+                      alt={symbol.name}
+                      width={100}
+                      height={100}
+                      className="w-full h-full object-contain"
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Controls */}
@@ -309,8 +331,8 @@ export function SlotsGame() {
           </div>
 
           <div className="flex gap-4">
-            <Button
-              onClick={handleSpin}
+          <Button
+            onClick={handleSpin}
               disabled={state.isSpinning || mockBalance < state.betAmount}
               className={`flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3
                 ${mockBalance < state.betAmount ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -325,13 +347,13 @@ export function SlotsGame() {
                 ${isAutoSpin ? 'bg-yellow-500' : ''}`}
             >
               {isAutoSpin ? 'Stop Auto' : 'Auto Spin'}
-            </Button>
+          </Button>
           </div>
         </div>
 
         {/* Result */}
         <AnimatePresence>
-          {state.lastResult && (
+        {state.lastResult && (
             <motion.div 
               className="mt-6 text-center"
               initial={{ opacity: 0, y: 20 }}
@@ -343,15 +365,15 @@ export function SlotsGame() {
                 animate={{ scale: state.lastResult.totalWin > 0 ? [1, 1.1, 1] : 1 }}
                 transition={{ duration: 0.5, repeat: state.lastResult.totalWin > 0 ? 2 : 0 }}
               >
-                {state.lastResult.totalWin > 0
+              {state.lastResult.totalWin > 0
                   ? `You won ${state.lastResult.totalWin.toFixed(2)}!`
-                  : 'Try again!'}
+                : 'Try again!'}
               </motion.h3>
-              <p className="text-sm text-yellow-500/80 mt-2">
-                Winning Lines: {state.lastResult.winningLines.length}
-              </p>
+            <p className="text-sm text-yellow-500/80 mt-2">
+              Winning Lines: {state.lastResult.winningLines.length}
+            </p>
             </motion.div>
-          )}
+        )}
         </AnimatePresence>
       </div>
 
