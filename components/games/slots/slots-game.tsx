@@ -107,12 +107,6 @@ export function SlotsGame() {
     }
   }, [state.betAmount, playSound]);
 
-  const updateSpinningSymbols = useCallback(() => {
-    setSpinningSymbols(Array(9).fill(null).map(() => 
-      SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
-    ));
-  }, []);
-
   const handleAutoSpinToggle = () => {
     const newAutoSpinState = !isAutoSpin;
     setIsAutoSpin(newAutoSpinState);
