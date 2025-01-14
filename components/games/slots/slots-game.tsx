@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SYMBOLS, PAYLINES, type SlotState } from './types';
 import { generateServerSeed, generateSpinResult, generateClientSeed } from './provably-fair';
@@ -23,7 +23,9 @@ export function SlotsGame() {
   const [winningAnimation, setWinningAnimation] = useState(false);
   const [isAutoSpin, setIsAutoSpin] = useState(false);
   const [spinningSymbols, setSpinningSymbols] = useState(Array(9).fill(SYMBOLS[0]));
+  const [displayedSymbols, setDisplayedSymbols] = useState(Array(9).fill(SYMBOLS[0]));
   const [autoSpinTimeout, setAutoSpinTimeout] = useState<NodeJS.Timeout | null>(null);
+  const spinIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize seeds
   useEffect(() => {
@@ -36,6 +38,9 @@ export function SlotsGame() {
     return () => {
       if (autoSpinTimeout) {
         clearTimeout(autoSpinTimeout);
+      }
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current);
       }
     };
   }, [autoSpinTimeout]);
@@ -103,52 +108,74 @@ export function SlotsGame() {
   }, [state.betAmount, playSound]);
 
   const updateSpinningSymbols = useCallback(() => {
-    setSpinningSymbols(prev => 
-      prev.map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
-    );
+    setSpinningSymbols(Array(9).fill(null).map(() => 
+      SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
+    ));
   }, []);
 
   const handleAutoSpinToggle = () => {
     const newAutoSpinState = !isAutoSpin;
     setIsAutoSpin(newAutoSpinState);
     
-    // If turning off, clear any pending auto-spin
-    if (!newAutoSpinState && autoSpinTimeout) {
-      clearTimeout(autoSpinTimeout);
-      setAutoSpinTimeout(null);
+    // Reset spinning state when turning off auto-spin
+    if (!newAutoSpinState) {
+      setState(prev => ({ ...prev, isSpinning: false }));
+      if (autoSpinTimeout) {
+        clearTimeout(autoSpinTimeout);
+        setAutoSpinTimeout(null);
+      }
     }
   };
 
   const handleSpin = async () => {
     if (state.isSpinning || state.betAmount <= 0 || mockBalance < state.betAmount) return;
 
-    // Clear any existing auto-spin timeout
+    // Reset winning animation state
+    setWinningAnimation(false);
+    
+    // Clear any existing intervals
     if (autoSpinTimeout) {
       clearTimeout(autoSpinTimeout);
       setAutoSpinTimeout(null);
     }
+    if (spinIntervalRef.current) {
+      clearInterval(spinIntervalRef.current);
+      spinIntervalRef.current = null;
+    }
 
-    setWinningAnimation(false);
     setState(prev => ({ ...prev, isSpinning: true }));
     playSound('spin');
     
     try {
+      // Generate new server seed for this spin
+      const currentServerSeed = generateServerSeed();
+      setServerSeed(currentServerSeed);
+
       // Deduct bet amount from balance
       setMockBalance(prev => prev - state.betAmount);
 
-      // Generate result
-      const result = generateSpinResult(serverSeed, clientSeed, nonce);
+      // Generate result using the new server seed
+      const result = generateSpinResult(currentServerSeed, clientSeed, nonce);
       const symbols = result.map(index => SYMBOLS[index]);
       
-      // Start spinning animation
-      const spinInterval = setInterval(updateSpinningSymbols, 100);
+      // Create spinning interval with random symbols for each position
+      spinIntervalRef.current = setInterval(() => {
+        setSpinningSymbols(Array(9).fill(null).map(() => 
+          SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
+        ));
+      }, 100);
       
-      // Add artificial delay for spinning animation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Increase spinning duration for better animation
+      await new Promise(resolve => setTimeout(resolve, 2500));
       
-      // Stop spinning animation
-      clearInterval(spinInterval);
-      
+      // Stop spinning animation and show final result
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current);
+        spinIntervalRef.current = null;
+      }
+      setSpinningSymbols(symbols);
+      setDisplayedSymbols(symbols);
+
       // Calculate winning lines
       const winningLines = PAYLINES.filter((line, index) => {
         if (index >= state.selectedPayLines) return false;
@@ -204,14 +231,15 @@ export function SlotsGame() {
       setNonce(prev => prev + 1);
       setServerSeed(generateServerSeed());
 
-      // Continue auto-spin if enabled
+      // Increase delay before next auto-spin
       if (isAutoSpin && mockBalance >= state.betAmount) {
-        const timeout = setTimeout(handleSpin, 1000);
+        const timeout = setTimeout(handleSpin, 3000);
         setAutoSpinTimeout(timeout);
       }
     } catch (error) {
       console.error('Spin failed:', error);
       setState(prev => ({ ...prev, isSpinning: false }));
+      setSpinningSymbols(Array(9).fill(SYMBOLS[0])); // Reset symbols on error
       // Clear auto-spin on error
       setIsAutoSpin(false);
       if (autoSpinTimeout) {
@@ -241,7 +269,7 @@ export function SlotsGame() {
         {/* Slot Grid */}
         <div className="grid grid-cols-3 gap-2 mb-8 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 pointer-events-none" />
-          {(state.isSpinning ? spinningSymbols : (state.lastResult?.symbols || Array(9).fill(SYMBOLS[0]))).map((symbol, i) => {
+          {(state.isSpinning ? spinningSymbols : displayedSymbols).map((symbol, i) => {
             // Convert grid index to [row,col] format
             const row = Math.floor(i / 3);
             const col = i % 3;
@@ -262,15 +290,21 @@ export function SlotsGame() {
                     animate={{ 
                       y: 0, 
                       opacity: 1,
-                      scale: winningAnimation && state.lastResult?.winningLines.some(line => 
-                        PAYLINES[line].positions.some((pos, col) => col * 3 + pos === i)
+                      scale: winningAnimation && state.lastResult?.winningLines.some(lineIndex => 
+                        // Only animate if this position is part of a winning horizontal line
+                        lineIndex < 3 && PAYLINES[lineIndex].positions[col] === row
                       ) ? [1, 1.1, 1] : 1
                     }}
                     exit={{ y: 100, opacity: 0 }}
                     transition={{ 
                       duration: state.isSpinning ? 0.2 : 0.5,
                       delay: state.isSpinning ? 0 : i * 0.1,
-                      scale: { repeat: winningAnimation ? Infinity : 0, duration: 0.5 }
+                      scale: { 
+                        repeat: winningAnimation && state.lastResult?.winningLines.some(lineIndex => 
+                          lineIndex < 3 && PAYLINES[lineIndex].positions[col] === row
+                        ) ? Infinity : 0, 
+                        duration: 0.5 
+                      }
                     }}
                     className="w-full h-full"
                   >
@@ -322,8 +356,13 @@ export function SlotsGame() {
                 type="number"
                 min={1}
                 max={5}
-                value={state.selectedPayLines}
-                onChange={e => setState(prev => ({ ...prev, selectedPayLines: parseInt(e.target.value) }))}
+                value={state.selectedPayLines.toString()}
+                onChange={e => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value >= 1 && value <= 5) {
+                    setState(prev => ({ ...prev, selectedPayLines: value }));
+                  }
+                }}
                 disabled={state.isSpinning}
                 className="w-full"
               />
