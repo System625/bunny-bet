@@ -151,9 +151,7 @@ export function SlotsGame() {
       const symbols = result.map(index => SYMBOLS[index]);
       
       // Create spinning interval with random symbols for each position
-      let spinCount = 0;
       const spinInterval = setInterval(() => {
-        spinCount++;
         updateSpinningSymbols();
       }, 100);
       
