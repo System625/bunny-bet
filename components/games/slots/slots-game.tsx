@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SYMBOLS, PAYLINES, type SlotState } from './types';
 import { generateServerSeed, generateSpinResult, generateClientSeed } from './provably-fair';
@@ -25,7 +25,6 @@ export function SlotsGame() {
   const [spinningSymbols, setSpinningSymbols] = useState(Array(9).fill(SYMBOLS[0]));
   const [displayedSymbols, setDisplayedSymbols] = useState(Array(9).fill(SYMBOLS[0]));
   const [autoSpinTimeout, setAutoSpinTimeout] = useState<NodeJS.Timeout | null>(null);
-  const spinIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize seeds
   useEffect(() => {
@@ -38,9 +37,6 @@ export function SlotsGame() {
     return () => {
       if (autoSpinTimeout) {
         clearTimeout(autoSpinTimeout);
-      }
-      if (spinIntervalRef.current) {
-        clearInterval(spinIntervalRef.current);
       }
     };
   }, [autoSpinTimeout]);
@@ -107,6 +103,12 @@ export function SlotsGame() {
     }
   }, [state.betAmount, playSound]);
 
+  const updateSpinningSymbols = useCallback(() => {
+    setSpinningSymbols(Array(9).fill(null).map(() => 
+      SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
+    ));
+  }, []);
+
   const handleAutoSpinToggle = () => {
     const newAutoSpinState = !isAutoSpin;
     setIsAutoSpin(newAutoSpinState);
@@ -127,14 +129,10 @@ export function SlotsGame() {
     // Reset winning animation state
     setWinningAnimation(false);
     
-    // Clear any existing intervals
+    // Clear any existing auto-spin timeout
     if (autoSpinTimeout) {
       clearTimeout(autoSpinTimeout);
       setAutoSpinTimeout(null);
-    }
-    if (spinIntervalRef.current) {
-      clearInterval(spinIntervalRef.current);
-      spinIntervalRef.current = null;
     }
 
     setState(prev => ({ ...prev, isSpinning: true }));
@@ -153,20 +151,17 @@ export function SlotsGame() {
       const symbols = result.map(index => SYMBOLS[index]);
       
       // Create spinning interval with random symbols for each position
-      spinIntervalRef.current = setInterval(() => {
-        setSpinningSymbols(Array(9).fill(null).map(() => 
-          SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
-        ));
+      let spinCount = 0;
+      const spinInterval = setInterval(() => {
+        spinCount++;
+        updateSpinningSymbols();
       }, 100);
       
       // Increase spinning duration for better animation
       await new Promise(resolve => setTimeout(resolve, 2500));
       
       // Stop spinning animation and show final result
-      if (spinIntervalRef.current) {
-        clearInterval(spinIntervalRef.current);
-        spinIntervalRef.current = null;
-      }
+      clearInterval(spinInterval);
       setSpinningSymbols(symbols);
       setDisplayedSymbols(symbols);
 
@@ -279,7 +274,7 @@ export function SlotsGame() {
               >
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={state.isSpinning ? `spinning-${i}-${Date.now()}` : symbol.id}
+                    key={`${state.isSpinning ? 'spinning' : 'static'}-${i}-${symbol.id}-${Date.now()}`}
                     initial={{ y: -100, opacity: 0 }}
                     animate={{ 
                       y: 0, 
