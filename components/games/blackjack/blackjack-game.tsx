@@ -277,7 +277,7 @@ export const BlackjackGame = ({ onWin, onLose, balance, minBet = 1, maxBet = 100
 
       {/* Dealer's Hand */}
       <div className="mb-8 relative z-10">
-        <h3 className="text-white mb-2 text-shadow">Dealer's Hand ({gameState.dealerHand.value})</h3>
+        <h3 className="text-white mb-2 text-shadow">Dealer&apos;s Hand ({gameState.dealerHand.value})</h3>
         <div className="flex gap-2 flex-wrap justify-center">
           <AnimatePresence>
             {gameState.dealerHand.cards.map((card, index) => (
