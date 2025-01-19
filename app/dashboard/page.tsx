@@ -30,6 +30,16 @@ export default function DashboardPage() {
               Spin to win with our provably fair slot machine
             </p>
           </Link>
+
+          <Link 
+            href="/games/blackjack" 
+            className="p-6 border-2 border-yellow-500 rounded-lg text-center md:text-left"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-yellow-500">Blackjack</h2>
+            <p className="text-yellow-500">
+              Test your luck against the dealer in this classic casino game
+            </p>
+          </Link>
           
           {/* Add more game cards here */}
         </div>
